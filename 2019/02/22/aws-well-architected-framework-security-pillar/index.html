@@ -1,0 +1,123 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>AWS架构完善五大支柱之安全性支柱 | Yiwang's Blog</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.3.1/jquery.min.js"></script><link rel="icon" mask sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">AWS架构完善五大支柱之安全性支柱</h1><a id="logo" href="/.">Yiwang's Blog</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">AWS架构完善五大支柱之安全性支柱</h1><div class="post-meta">Feb 22, 2019<span> | </span><span class="category"><a href="/categories/架构设计/">架构设计</a></span></div><div class="post-content"><p><img src="/assets/images/aws-well-architected-framework-security-pillar.png" alt="本文结构"></p>
+<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1. 前言"></a>1. 前言</h2><h3 id="1-1-安全性定义"><a href="#1-1-安全性定义" class="headerlink" title="1.1 安全性定义"></a>1.1 安全性定义</h3><p>安全性支柱是AWS架构完善框架的五大支柱之一，围绕如何通风险评估及安全策略保护信息、系统以及资产，交付商业价值。 它包含以下五个方面的内容：身份与访问管理、检测控制、基础设施保护、数据保护、事件响应。</p>
+<p>下面的内容是我阅读AWS架构完善<a href="https://d1.awsstatic-china.com/whitepapers/architecture/AWS-Security-Pillar.pdf" target="_blank" rel="noopener">安全性支柱白皮书</a>时整理的笔记和心得。</p>
+<h3 id="1-2-安全性设计原则"><a href="#1-2-安全性设计原则" class="headerlink" title="1.2 安全性设计原则"></a>1.2 安全性设计原则</h3><ul>
+<li><strong>最小权限原则</strong><br>在与AWS的资源进行交互时，只授予必要的最小的、有有效期限的权限</li>
+<li><strong>可追溯性</strong><br>记录必要的信息，确保关心的操作或系统状态变化能够被监控、报警和审计</li>
+<li><strong>在一切层面考虑安全性</strong><br>除了考虑系统边界的安全性以外，还需要系统内部不同层面加以考虑，如：虚拟机、操作系统、软件、网络、负载均衡</li>
+<li><strong>自动化安全性最佳实践</strong><br>使用基于软件的安全机制有助于更快、更高效地扩展应用，具体应用方式？</li>
+<li><strong>保护传输中的、静态的数据</strong><br>对数据按敏感程度分级，使用合适的方式进行保护，包括：加密、Tokenization、访问权限控制</li>
+<li><strong>避免人们直接操作数据</strong><br>创建机制或工具，避免人面直接操作数据，避免失误导致损失</li>
+<li><strong>提前为安全事件做好准备</strong><br>创建安全事件处理流程，并进行演练检验其有效性；使用自动化工具提高问题发现、处理的效率。</li>
+</ul>
+<h2 id="2-身份与访问管理"><a href="#2-身份与访问管理" class="headerlink" title="2. 身份与访问管理"></a>2. 身份与访问管理</h2><p>身份与访问管理确保只有经过认证和授权的用户能够以指定的方式访问资源，是系统安全性的关键内容。需要关心如何保护AWS凭证和进行细粒度的授权。</p>
+<h3 id="2-1-保护凭证"><a href="#2-1-保护凭证" class="headerlink" title="2.1 保护凭证"></a>2.1 保护凭证</h3><ul>
+<li>root账号的使用：使用多因子认证进行保护，完成相关配置后删除访问密钥；不直接使用，只用于创建低权限的子账号进行业务管理</li>
+<li>联合认证：通过 SAML 2.0 或者 Web 身份机制？减少创建新用户的需求，有效利用已有机制</li>
+<li>人机交互密码保护：满足一定的复杂性要求、定期修改、使用多因子认证</li>
+<li>机机交互凭证保护：使用访问密钥ID和机密密钥（AWS STS，AK/SK）进行访问；避免凭证泄漏，凭证需要加密存储，避免在日志中打印，避免明文硬编码在源代码中，避免不小心入库</li>
+</ul>
+<p>相关的AWS服务：AWS STS，AWS EC2 metadata</p>
+<h3 id="2-2-细粒度授权"><a href="#2-2-细粒度授权" class="headerlink" title="2.2 细粒度授权"></a>2.2 细粒度授权</h3><p>认证和授权的核心在于：定义主角：如用户、组、角色、服务，创建并指定策略，严格按策略进行访问控制。<br>对访问进行细粒度的授权有以下好处：</p>
+<ul>
+<li>减少凭证泄漏后带来的影响</li>
+<li>简化审计复杂度</li>
+<li>极具鲁棒性的访问管理框架</li>
+</ul>
+<p>相关的AWS服务：IAM、AWS Organizations（中心化地管理不同AWS账号的资源访问策略）</p>
+<h2 id="3-检测控制"><a href="#3-检测控制" class="headerlink" title="3. 检测控制"></a>3. 检测控制</h2><h3 id="3-1-日志收集与分析"><a href="#3-1-日志收集与分析" class="headerlink" title="3.1 日志收集与分析"></a>3.1 日志收集与分析</h3><p>即把必要的信息以日志的、事件形势记录下来，统一收集分析，日志采集或事件记录可以通过API调用的方式发送到相关日志、审计服务。</p>
+<p>相关的AWS服务：Amazon GuardDuty 、AWS Config、AWS CloudWatch Logs、AWS S3、AWS Glacier、AWS Athena</p>
+<h3 id="3-2-将审计控制与通知和工作流进行整合"><a href="#3-2-将审计控制与通知和工作流进行整合" class="headerlink" title="3.2 将审计控制与通知和工作流进行整合"></a>3.2 将审计控制与通知和工作流进行整合</h3><p>即事件、问题管理流程中，类型为安全性的部分，参考运维管理领域的事件问题管理流程即可；另外值得一提的是，还可以在CICD的过程中考虑安全性，例如：构建时检测是否存在未解决的安全类issue、bug。</p>
+<p>相关的AWS服务：AWS Config Rules、Amazon Inspector（ 用于检测构建过程发现的安全性问题）、AWS CloudWatch Logs/API/SDK</p>
+<h2 id="4-基础设施保护"><a href="#4-基础设施保护" class="headerlink" title="4. 基础设施保护"></a>4. 基础设施保护</h2><h3 id="4-1-保护网络和主机级边界"><a href="#4-1-保护网络和主机级边界" class="headerlink" title="4.1 保护网络和主机级边界"></a>4.1 保护网络和主机级边界</h3><p>可以从以下几个方面进行考虑：设计系统的网络拓扑，合理规划网络区域、合理选择网络安全区部署组件、考虑系统流量走向，合理配置防火墙、VPC、子网、安全组，NACLs，只允许必要的访问流量</p>
+<p>相关的AWS服务：Amazon VPC Security Groups 、 AWS Shield （antiDDos）、AWS WAF（网络应用防火墙）、AWS Firewall Manager（中心化管理不同AWS账号的WAF规则）、AWS Direct Connect（连接自己的数据中心到AWS VPC）</p>
+<h3 id="4-2-系统安全配置和维护"><a href="#4-2-系统安全配置和维护" class="headerlink" title="4.2 系统安全配置和维护"></a>4.2 系统安全配置和维护</h3><p>监控并确保系统的配置处于期望的安全状态。确保及时对主机系统进行应用最新的补丁进行安全加固（可以使用EC2 Systems Manager的维护窗口、补丁管理进行加固）、或使用一次性的计算资源，需要时直接使用CloudFormation应用最新的OS模板创建计算资源实例，确保系统是最新的。</p>
+<p>相关的AWS服务：AWS Inspector、AWS CloudFormation</p>
+<h3 id="4-3-实施服务级的保护"><a href="#4-3-实施服务级的保护" class="headerlink" title="4.3 实施服务级的保护"></a>4.3 实施服务级的保护</h3><p>设置更细粒度的权限访问配置，指定指定的凭证/服务具有对指定服务资源的访问权限。</p>
+<p>相关的AWS服务：AWS KMS、AWS S3（支持对桶进行细粒度权限配置）、AWS SNS（支持对=主题进行细粒度权限配置）</p>
+<h2 id="5-数据保护"><a href="#5-数据保护" class="headerlink" title="5. 数据保护"></a>5. 数据保护</h2><h3 id="5-1-数据分级"><a href="#5-1-数据分级" class="headerlink" title="5.1 数据分级"></a>5.1 数据分级</h3><p>根据数据的敏感程度对组织的数据进行分类。考虑以下要素：数据类型、数据存储的位置、访问级别、保护方式（加密/访问控制）。实施数据保护时，平衡安全性与可用性，采用纵深防御策略（多层防御，通过强认证、确保访问来自受信任区域）。并且避免手动操作数据。</p>
+<h3 id="5-2-加密-令牌（Encryption-Tokenization）"><a href="#5-2-加密-令牌（Encryption-Tokenization）" class="headerlink" title="5.2 加密/令牌（Encryption/Tokenization）"></a>5.2 加密/令牌（Encryption/Tokenization）</h3><ul>
+<li><strong>加密</strong><br>即加密</li>
+<li><strong>令牌</strong><br>令牌用于表达信息中的某一段敏感片段，例如：通过令牌表达客户的信用卡号，令牌内容必须毫无意义。</li>
+</ul>
+<p>考虑要点</p>
+<ul>
+<li>自己定义的数据分类模型，以及每一层级的访问权限</li>
+<li>要求实现的安全合规要求，严格遵守</li>
+<li>根据场景选择令牌或加密进行数据保护</li>
+<li>考虑解密密钥的访问权限</li>
+</ul>
+<h3 id="5-3-保护静态数据"><a href="#5-3-保护静态数据" class="headerlink" title="5.3 保护静态数据"></a>5.3 保护静态数据</h3><p>通过加密或访问控制的方式保护静态数据，包括：块存储、对象存储、数据库、归档文件等</p>
+<h3 id="5-4-保护传输中的数据"><a href="#5-4-保护传输中的数据" class="headerlink" title="5.4 保护传输中的数据"></a>5.4 保护传输中的数据</h3><p>系统内、系统——用户侧两种路线传输的数据都需要考虑，使用安全的实现了TLS的通信协议，比如https加密通信，以保护数据可靠性与完整性。</p>
+<p>关键的AWS服务：ACM（管理https证书）</p>
+<h3 id="5-5-数据备份-复制-恢复"><a href="#5-5-数据备份-复制-恢复" class="headerlink" title="5.5 数据备份/复制/恢复"></a>5.5 数据备份/复制/恢复</h3><p>Amazon S3（可用性达“11个9”），Amazon RDS、Amazon EBS、Amazon Glacier均提供了相应的数据备份恢复机制。</p>
+<p>相关的AWS服务：AWS KMS、AWS S3、AWS EBS、AWS Glacier</p>
+<h2 id="6-事件响应"><a href="#6-事件响应" class="headerlink" title="6. 事件响应"></a>6. 事件响应</h2><ul>
+<li>快速隔离环境，如：通过修改虚拟机安全组进行隔离</li>
+<li>使处理进程可见非常重要</li>
+<li>进行RCA</li>
+<li>临时决定赋予某个人权限可能引入其他问题，需要提前准备好</li>
+<li>取底——卷打快照，留待恢复分析</li>
+<li>使用CloudFormation创建<strong>清洁室</strong>进行分析</li>
+</ul>
+<p>相关的AWS服务：IAM、AWS CloudFormation、AWS CloudTrail、AWS CloudWatch Event、AWS Step Function</p>
+<h2 id="7-总结"><a href="#7-总结" class="headerlink" title="7. 总结"></a>7. 总结</h2><p>安全是一项长期的工作，每一次安全性问题的出现，都应该被看作是对系统架构的安全性进行完善的机会。考虑系统架构设计的安全性时，从以下几点着手：使用强的身份认证和访问控制、自动化安全事件响应、在不同层级对基础设施进行防护、对静态/传输中的数据进行分级/加密保护。</p>
+<h2 id="8-心得感想"><a href="#8-心得感想" class="headerlink" title="8. 心得感想"></a>8. 心得感想</h2><p>问：回想在实际工作中我们是如何保障产品的安全性的呢？</p>
+<p>答曰：测试。</p>
+<h4 id="安全测试"><a href="#安全测试" class="headerlink" title="安全测试"></a>安全测试</h4><p>在开发团队进行功能开发时，部分成员由于缺乏相应的知识与经验，无法全面系统地考虑到在哪些层面应该做好必要的防护，不可避免地会引入数目相当可观的安全性问题，因此在产品转测后，需要专业的安全测试团队介入，启动系统全面的安全测试。在那不太美好的回忆里，安全性问题大致可以划分为以下几大类：</p>
+<ul>
+<li>文件、目录权限过大（比如密钥、证书、秘文权限应该是600）</li>
+<li>敏感信息未加密存储、日志中打印敏感信息（明文密码、公网IP等）</li>
+<li>操作系统、引用的软件存在高危漏洞</li>
+<li>使用开源三方软件隐含的法务风险（使用fossid识别源码归属）</li>
+<li>使用不安全的加密算法</li>
+<li>ddos攻击下系统可用性不足</li>
+<li>存在横向纵向越权问题</li>
+<li>使用权限过大的账号（如root）运行业务程序</li>
+</ul>
+<h4 id="安全问题整改"><a href="#安全问题整改" class="headerlink" title="安全问题整改"></a>安全问题整改</h4><p>随着安全测试的进行，开发同学门陆陆续续接收到五花八门的问题单，一会儿笑话自己写出如此低级而严重的安全Bug，一会儿吐槽变态的安全红线要求，在修改问题单时，逐渐加深对系统安全性设计实现的认识，得以成长。</p>
+<h4 id="对照设计原则与要点"><a href="#对照设计原则与要点" class="headerlink" title="对照设计原则与要点"></a>对照设计原则与要点</h4><table>
+<thead>
+<tr>
+<th>AWS架构完善安全性支柱设计原则/要点</th>
+<th>工作实践</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最小权限原则</td>
+<td>系统文件、目录权限有保证，但账号、服务未考量</td>
+</tr>
+<tr>
+<td>可追溯性</td>
+<td>对接公有云的审计服务，在API调用时将审计日志发送到审计服务</td>
+</tr>
+<tr>
+<td>在一切层面考虑安全性</td>
+<td>done</td>
+</tr>
+<tr>
+<td>自动化安全性最佳实践</td>
+<td>not yet</td>
+</tr>
+<tr>
+<td>保护传输中的、静态的数据</td>
+<td>done</td>
+</tr>
+<tr>
+<td>避免人们直接操作数据</td>
+<td>使用代码自动化数据库升级，使用权限受限的运维页面操作数据库</td>
+</tr>
+<tr>
+<td>提前为安全事件做好准备</td>
+<td>not yet</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-参考链接"><a href="#9-参考链接" class="headerlink" title="9. 参考链接"></a>9. 参考链接</h2><ul>
+<li><a href="https://d1.awsstatic-china.com/whitepapers/architecture/AWS-Security-Pillar.pdf" target="_blank" rel="noopener">https://d1.awsstatic-china.com/whitepapers/architecture/AWS-Security-Pillar.pdf</a></li>
+<li><a href="https://amazonaws-china.com/cn/architecture/well-architected/" target="_blank" rel="noopener">https://amazonaws-china.com/cn/architecture/well-architected/</a></li>
+<li><a href="https://amazonaws-china.com/cn/blogs/apn/the-5-pillars-of-the-aws-well-architected-framework/" target="_blank" rel="noopener">https://amazonaws-china.com/cn/blogs/apn/the-5-pillars-of-the-aws-well-architected-framework/</a></li>
+<li><a href="https://www.skyhighnetworks.com/cloud-security-university/tokenization-vs-encryption/" target="_blank" rel="noopener">Tokenization vs Encryption</a></li>
+</ul>
+</div><div class="tags"><a href="/tags/云计算/">云计算</a><a href="/tags/架构设计/">架构设计</a><a href="/tags/AWS/">AWS</a><a href="/tags/架构完善框架/">架构完善框架</a><a href="/tags/学习笔记/">学习笔记</a><a href="/tags/安全/">安全</a></div><div class="post-nav"><a class="next" href="/2019/02/13/aws-well-architected-framework-operational-excellence-pillar/">AWS架构完善五大支柱之卓越操作支柱</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/SRE/">SRE</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/架构设计/">架构设计</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/云计算/" style="font-size: 15px;">云计算</a> <a href="/tags/SRE/" style="font-size: 15px;">SRE</a> <a href="/tags/API设计/" style="font-size: 15px;">API设计</a> <a href="/tags/on-call/" style="font-size: 15px;">on-call</a> <a href="/tags/调用链/" style="font-size: 15px;">调用链</a> <a href="/tags/分布式追踪系统/" style="font-size: 15px;">分布式追踪系统</a> <a href="/tags/自动化测试/" style="font-size: 15px;">自动化测试</a> <a href="/tags/架构设计/" style="font-size: 15px;">架构设计</a> <a href="/tags/AWS/" style="font-size: 15px;">AWS</a> <a href="/tags/架构完善框架/" style="font-size: 15px;">架构完善框架</a> <a href="/tags/学习笔记/" style="font-size: 15px;">学习笔记</a> <a href="/tags/安全/" style="font-size: 15px;">安全</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/02/22/aws-well-architected-framework-security-pillar/">AWS架构完善五大支柱之安全性支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/02/13/aws-well-architected-framework-operational-excellence-pillar/">AWS架构完善五大支柱之卓越操作支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/02/03/five-pillars-of-aws-well-architected-framework/">AWS良好架构框架的五大支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/20/distributed-tracking-system/">调用链与分布式追踪系统</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/06/handle-UI-testcase-fails-of-preproduction-environment/">类生产环境UI自动化测试失败用例处理</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">Yiwang's Blog.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.2/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.2/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>调用链与分布式追踪系统 | Yiwang's Blog</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.3.1/jquery.min.js"></script><link rel="icon" mask sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">调用链与分布式追踪系统</h1><a id="logo" href="/.">Yiwang's Blog</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">调用链与分布式追踪系统</h1><div class="post-meta">Jan 20, 2019<span> | </span><span class="category"><a href="/categories/SRE/">SRE</a></span></div><div class="post-content"><p>上周的工作内容是开发一个运维需求——对接公有云的分布式追踪系统。服务上线转商用之前，运维能力需要满足商用要求，而使用分布式追踪系统把服务监控起来，是商用运维要求中的必须项，因此有了这个需求。一周下来，代码已经开发得差不多了，还差验证和上线工作，在这之前，先梳理回顾一下。</p>
+<p>对接到分布式追踪系统之所以如此重要，是因为使用分布式追踪系统监控服务有以下好处</p>
+<ol>
+<li>通过在各个微服务埋点打印的调用链日志，能够把一个请求处理的完整链路端到端地展示出来</li>
+<li>能够快速定位到异常环节，如中间在某个环节响应慢或是处理失败</li>
+<li>能够根据调用链日志生成服务依赖关系拓扑图，直观地观察到故障点或哪个微服务是系统的瓶颈点所在</li>
+<li>甚至能够根据采集的日志进行告警配置</li>
+</ol>
+<p>我们的服务主要使用Python和Go语言进行开发，分别获取对应的SDK进行开发即可，整个开发对接上线的流程大致是这样的：</p>
+<ol>
+<li>联系接口人沟通埋点方案</li>
+<li>使用统一的SDK进行埋点代码开发和测试</li>
+<li>整理服务—微服务—节点—日志路径信息，服务—微服务—业务—URL信息。公司的分布式追踪系统的日志采集借用了已有的日志服务的能力，日志服务接收到调用链日志时，会直接转发给分布式追踪系统，因此信息需要分别反馈给日志采集系统和分布式追踪系统在服务节点上安装日志采集Agent</li>
+<li>升级微服务，打开打印调用链日志的开关（开始打印调用链日志，与此同时，节点上的日志采集Agent把采集的调用链日志信息上报到日志系统）</li>
+<li>类生产环境验证对接效果：本地正常打印调用链日志，日志采集Agent正常上报调用链日志；分布式追踪系统能够检索到服务的Trace信息，能够正常显示微服务依赖关系拓扑图</li>
+<li>上线生产环境各个局点</li>
+</ol>
+<h3 id="埋点开发"><a href="#埋点开发" class="headerlink" title="埋点开发"></a>埋点开发</h3><h4 id="哪些地方需要打印调用链日志呢？"><a href="#哪些地方需要打印调用链日志呢？" class="headerlink" title="哪些地方需要打印调用链日志呢？"></a>哪些地方需要打印调用链日志呢？</h4><p>和性能调优类似，打点的地方可以包括：HTTP请求服务/客户端、RPC请求服务/客户端、数据库访问、中间件调用、本地方法调用。</p>
+<blockquote>
+<p>What points should be tracked by default?<br>I think that for all projects we should include by default 5 kinds of points:</p>
+<ul>
+<li>All HTTP calls - helps to get information about: what HTTP requests were done, duration of calls (latency of service), information about projects involved in request.</li>
+<li>All RPC calls - helps to understand duration of parts of request related to different services in one project. This information is essential to understand which service produce the bottleneck.</li>
+<li>All DB API calls - in some cases slow DB query can produce bottleneck. So it’s quite useful to track how much time request spend in DB layer.</li>
+<li>All driver calls - in case of nova, cinder and others we have vendor drivers. Duration</li>
+<li>ALL SQL requests (turned off by default, because it produce a lot of traffic)</li>
+</ul>
+</blockquote>
+<h4 id="埋点方式"><a href="#埋点方式" class="headerlink" title="埋点方式"></a>埋点方式</h4><ol>
+<li>显示调用start和stop方法</li>
+<li>函数/类装饰器</li>
+<li>with代码块</li>
+<li>某些框架或依赖库有官方的集成支持，JAVA和Go的支持非常全，而Python的则缺少一些中间件（<a href="https://github.com/opentracing-contrib）" target="_blank" rel="noopener">https://github.com/opentracing-contrib）</a></li>
+<li>听说Go还有一种直接替换Go-SDK就能够完成埋点功能注入的方式…</li>
+</ol>
+<h3 id="两篇重要的论文"><a href="#两篇重要的论文" class="headerlink" title="两篇重要的论文"></a>两篇重要的论文</h3><ul>
+<li>《Dapper, a Large-Scale Distributed Systems Tracing Infrastructure》—— 让分布式追踪系统这个领域流行起来</li>
+<li>《Uncertainty in Aggregate Estimates from Sampled Distributed Traces》—— 关于采样的详细分析</li>
+</ul>
+<h3 id="标准"><a href="#标准" class="headerlink" title="标准"></a>标准</h3><p>Uber发起的OpenTracing现在已经成为云原生计算基金会的一个子项目，<a href="https://github.com/opentracing/specification/blob/master/specification.md" target="_blank" rel="noopener">OpenTracing Semantic Specification</a>定义了数据采集时的数据模型和一些接口，应该算是分布式追踪系统的接口标准了，比较出名的Jaeger和Zipkin都实现了OpenTracing API。</p>
+<h3 id="业界实践"><a href="#业界实践" class="headerlink" title="业界实践"></a>业界实践</h3><ul>
+<li>阿里淘宝：EagleEye</li>
+<li>Twitter：Zipkin</li>
+<li>Uber：Jaeger</li>
+<li>AWS：XRays</li>
+<li>Google：Dapper，StakeDriver Trace，OpenCensus</li>
+<li>Golang：AppDash</li>
+<li>蚂蚁：云图</li>
+<li>阿里云：谛听，盘古</li>
+<li>神马：STrace</li>
+<li>OpenStack：osprofiler（原本是用于采集方法调用耗时数据，上报到ceilometer监控计量计费系统，用于性能调优，经过定制修改日志打印格式兼容OpenTracing的话打印出来的就是调用链日志了）</li>
+</ul>
+<h3 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h3><ul>
+<li><a href="https://blog.csdn.net/yunqiinsight/article/details/80134045" target="_blank" rel="noopener">https://blog.csdn.net/yunqiinsight/article/details/80134045</a></li>
+<li><a href="https://yq.aliyun.com/articles/514488" target="_blank" rel="noopener">https://yq.aliyun.com/articles/514488</a></li>
+<li><a href="https://www.cnblogs.com/sting2me/p/4393018.html" target="_blank" rel="noopener">https://www.cnblogs.com/sting2me/p/4393018.html</a></li>
+<li><a href="https://blog.appoptics.com/intro-to-opentracing-and-opencensus-for-distributed-tracing/" target="_blank" rel="noopener">https://blog.appoptics.com/intro-to-opentracing-and-opencensus-for-distributed-tracing/</a></li>
+<li><a href="https://logz.io/blog/zipkin-vs-jaeger/" target="_blank" rel="noopener">https://logz.io/blog/zipkin-vs-jaeger/</a></li>
+<li><a href="https://opentracing.io/" target="_blank" rel="noopener">https://opentracing.io/</a></li>
+</ul>
+</div><div class="tags"><a href="/tags/SRE/">SRE</a><a href="/tags/调用链/">调用链</a><a href="/tags/分布式追踪系统/">分布式追踪系统</a></div><div class="post-nav"><a class="pre" href="/2019/02/03/five-pillars-of-aws-well-architected-framework/">AWS良好架构框架的五大支柱</a><a class="next" href="/2019/01/06/handle-UI-testcase-fails-of-preproduction-environment/">类生产环境UI自动化测试失败用例处理</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/SRE/">SRE</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/架构设计/">架构设计</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/云计算/" style="font-size: 15px;">云计算</a> <a href="/tags/SRE/" style="font-size: 15px;">SRE</a> <a href="/tags/API设计/" style="font-size: 15px;">API设计</a> <a href="/tags/on-call/" style="font-size: 15px;">on-call</a> <a href="/tags/调用链/" style="font-size: 15px;">调用链</a> <a href="/tags/分布式追踪系统/" style="font-size: 15px;">分布式追踪系统</a> <a href="/tags/自动化测试/" style="font-size: 15px;">自动化测试</a> <a href="/tags/架构设计/" style="font-size: 15px;">架构设计</a> <a href="/tags/AWS/" style="font-size: 15px;">AWS</a> <a href="/tags/架构完善框架/" style="font-size: 15px;">架构完善框架</a> <a href="/tags/学习笔记/" style="font-size: 15px;">学习笔记</a> <a href="/tags/安全/" style="font-size: 15px;">安全</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/02/22/aws-well-architected-framework-security-pillar/">AWS架构完善五大支柱之安全性支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/02/13/aws-well-architected-framework-operational-excellence-pillar/">AWS架构完善五大支柱之卓越操作支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/02/03/five-pillars-of-aws-well-architected-framework/">AWS良好架构框架的五大支柱</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/20/distributed-tracking-system/">调用链与分布式追踪系统</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/01/06/handle-UI-testcase-fails-of-preproduction-environment/">类生产环境UI自动化测试失败用例处理</a></li></ul></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">Yiwang's Blog.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.2/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.2/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
